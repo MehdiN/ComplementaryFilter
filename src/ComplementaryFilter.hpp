@@ -1,5 +1,7 @@
-#include "math.h"
+#include <cmath>
 #include <stdio.h>
+#include <vector>
+#include <algorithm>
 #include <eigen3/Eigen/Dense>
 
 
@@ -7,21 +9,20 @@
 #define LOCAL_MAG_Y 5.75
 #define LOCAL_MAG_Z 415.2
 
+constexpr float local_mag = 225.1;
+
 using namespace Eigen;
 
-
-class AHRSMahony{
+class ComplementaryFilter{
 
     // constructor
-        AHRSMahony()
+        ComplementaryFilter()
         {
-            time_step = 0.1;
-            magFieldEarth = Vector3f(LOCAL_MAG_X,LOCAL_MAG_Y,LOCAL_MAG_Z);
         }
 
     typedef Matrix<float,4,1> Pose;
     typedef Matrix<float,3,1> Vector3f;
-
+    
 
     public:
 

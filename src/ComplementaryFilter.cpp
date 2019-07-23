@@ -1,4 +1,4 @@
-#include "AHRSMahony.hpp"
+#include "ComplementaryFilter.hpp"
 
 /*
 ||===========================================||
@@ -7,7 +7,7 @@
 */
 
 
-void AHRSMahony::updateInertialData(){
+void ComplementaryFilter::updateInertialData(){
 
     bool is_compass_available = false;
     bool is_accel_available = false;
@@ -38,7 +38,7 @@ void AHRSMahony::updateInertialData(){
 }
 
 
-void AHRSMahony::fuseInertialData(){
+void ComplementaryFilter::fuseInertialData(){
 
     float acc_h[3] = {0};
     float mag_h[3] = {0};
@@ -83,7 +83,8 @@ void AHRSMahony::fuseInertialData(){
 }
 
 
-void AHRHMahony::updateFilter(){
+void AHRHMahony::updateFilter()
+{
     // Todo 
 }
 
@@ -95,12 +96,12 @@ void AHRHMahony::updateFilter(){
 ||================================================||
 */
 
-AHRSMahony::Pose AHRSMahony::normalizeQuaternion(Pose quat){
+ComplementaryFilter::Pose ComplementaryFilter::normalizeQuaternion(Pose quat){
     return quat.normalized();
 }
 
 
-AHRSMahony::Pose AHRSMahony::crossfunction(Pose q1,Pose q2){
+ComplementaryFilter::Pose ComplementaryFilter::crossfunction(Pose q1,Pose q2){
 
     Pose P;
 
@@ -113,7 +114,7 @@ AHRSMahony::Pose AHRSMahony::crossfunction(Pose q1,Pose q2){
 }
 
 
-Matrix3f AHRSMahony::quatToRotationMatrix(Pose q){
+Matrix3f ComplementaryFilter::quatToRotationMatrix(Pose q){
 
     Matrix3f R;
 
