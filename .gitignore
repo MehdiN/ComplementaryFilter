@@ -31,4 +31,6 @@
 *.out
 *.app
 
+# Custom gitignore file
 .vscode
+Eigen/*
