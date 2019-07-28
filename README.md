@@ -1,11 +1,11 @@
-# MahonyCF
+# Complementary Filter 
 
-C++ implementation of the Nonlinear Attitude Estimator
+C++ implementation of the Nonlinear Attitude Estimator for Aerial Vehicle.
 
 ## Dependencies
 
 * Eigen3
-
+* Boost/math
 
 ## References
 
