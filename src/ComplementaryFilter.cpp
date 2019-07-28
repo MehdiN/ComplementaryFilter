@@ -6,89 +6,64 @@
 ||===========================================||
 */
 
-
-void ComplementaryFilter::updateInertialData(){
-
-    bool is_compass_available = false;
-    bool is_accel_available = false;
-    bool is_gyro_available = false;
-
-    if(is_compass_available){
-        // TODO: get data from compass sensor and load to buffer;
-        this->flags_filter.mag_data_available = true;
-    } else {
-        this->flags_filter.mag_data_available = true;
-    }
-
-    if(is_accelerometer_available){
-        // TODO: get data from accel sensor and load to buffer;
-        flags_filter.acc_data_available = true;
-    } else {
-        flags_filter.acc_data_available = true;
-    }
-
-    if(is_accelerometer_available){
-        // TODO: get data from gyro sensor and load to buffer;
-        flags_filter.gyro_data_available = true;
-    } else {
-        flags_filter.gyro_data_available = true;
-    }
-
-
-}
-
-
-void ComplementaryFilter::fuseInertialData(){
-
-    float acc_h[3] = {0};
-    float mag_h[3] = {0};
-    float acc[3] = {0};
-    float mag[3] = {0};
-
-    float fusion_buffer[3];
-
-    Vector3f downVector(0,0,1);
-    
-    acc_h[0] = downVector(0)*rotationMatrix(0,0) + downVector(1)*rotationMatrix(1,0) + downVector(2)*rotationMatrix(2,0);
-    acc_h[1] = downVector(0)*rotationMatrix(0,1) + downVector(1)*rotationMatrix(1,1) + downVector(2)*rotationMatrix(2,1);
-    acc_h[2] = downVector(0)*rotationMatrix(0,2) + downVector(1)*rotationMatrix(1,2) + downVector(2)*rotationMatrix(2,2);
-
-
-
-    magFieldEarth.normalize();
-    mag_h[0] = magFieldEarth(0)*rotationMatrix(0,0) + magFieldEarth(1)*rotationMatrix(1,0) + magFieldEarth(2)*rotationMatrix(2,0);
-    mag_h[1] = magFieldEarth(0)*rotationMatrix(0,1) + magFieldEarth(1)*rotationMatrix(1,1) + magFieldEarth(2)*rotationMatrix(2,1);
-    mag_h[2] = magFieldEarth(0)*rotationMatrix(0,2) + magFieldEarth(1)*rotationMatrix(1,2) + magFieldEarth(2)*rotationMatrix(2,2);
-
-
-    // Normalize sensor data
-
-    acc_buffer.normalize();
-    mag_buffer.normalize();
-
-    // FUSION STEP 1
-
-    fusion_buffer[0] = -0.5*k1*(-mag[1]*mag_h[2] + mag[2]*mag_h[1]) - 0.5*k2*(-acc[1]*acc_h[2] + acc[2]*acc_h[1]);
-    fusion_buffer[1] = -0.5*k1*(-mag[0]*mag_h[1] + mag[1]*mag_h[0]) - 0.5*k2*(-acc[0]*acc_h[1] + acc[1]*acc_h[0]);
-    fusion_buffer[2] = -0.5*k1*(mag[0]*mag_h[2] - mag[2]*mag_h[0]) - 0.5*k2*(acc[0]*acc_h[2] - acc[2]*acc_h[0]);
-
-    // FUSION STEP 2
-
-    fusion_buffer[0] = gyro[0] - bias(0) + kP*fusion_buffer[0]
-    fusion_buffer[0] = gyro[0] - bias(1) + kP*fusion_buffer[1]
-    fusion_buffer[0] = gyro[0] - bias(2) + kP*fusion_buffer[2]
-
-    // return fusion_buffer
-
-}
-
-
-void AHRHMahony::updateFilter()
+void ComplementaryFilter::updateSensorData(Eigen::Vector3d gyro, Eigen::Vector3d accel, Eigen::Vector3d mag)
 {
-    // Todo 
+
+    this->mag = mag;
+    this->gyro = gyro;
+    this->accel = accel;
+    
+}
+
+void ComplementaryFilter::fuseInertialData()
+{
+
+    // declare local variable used to fuse data
+    Eigen::Vector3d u_body,u_inertial,v_body,v_inertial,v_estimate,u_estimate; 
+    Eigen::Matrix3d projUb,projUi;
+
+    u_body = -1.0 * accel / gravity;
+    u_inertial = Eigen::Vector3f(0,0,1);
+
+    projUb = pow(u_body.norm(),2)*Eigen::Matrix3d::Identity() - u_body*u_body.transpose();
+    projUi = pow(u_body.norm(),2)*Eigen::Matrix3d::Identity() - u_body*u_body.transpose();
+
+    v_body = (projUb*mag)/(projUi*magFieldEarth).norm();
+    v_inertial = (projUi*magFieldEarth)/(projUi*magFieldEarth).norm();
+    
+    // check consitancy of the applied method
+    u_estimate = quaternion.toRotationMatrix().transpose()*u_inertial;
+    v_estimate = quaternion.toRotationMatrix().transpose()*v_inertial;
+
+    // Fuse the data;
+
+    sigR = params.k1 * u_body.cross(u_estimate) + params.k2 * ( u_estimate.dot(u_estimate.transpose()) ).dot(v_body.cross(v_estimate)) ;
+    sigB = params.k3 * u_body.cross(u_estimate) - params.k4 * v_body.cross(v_estimate);
+
+    gyro_estimate = gyro - bias + sigR;
+
 }
 
 
+void ComplementaryFilter::updateFilter()
+{
+
+    Eigen::Matrix4d A_rate;
+
+    A_rate <<   0,                  -gyro_estimate(0),  -gyro_estimate(1),  -gyro_estimate(2),
+                gyro_estimate(0),                   0,   gyro_estimate(2),  -gyro_estimate(1),
+                gyro_estimate(1),   -gyro_estimate(2),                  0,   gyro_estimate(0),
+                gyro_estimate(2),    gyro_estimate(1),   -gyro_estimate(0),                 0;
+
+
+    quaternion = (cos( 0.5*dt*gyro_estimate.norm() ) * Eigen::Matrix4d::Identity() + 0.5*dt*boost::math::sinc_pi(0.5*dt*gyro_estimate.norm())*A_rate)*quaternion;
+
+    Eigen::Vector3d bias_sat = std::min(1.0,params.sat/bias.norm());
+    bias += dt * (-params.kb*bias + param.kb*bias_sat + sigB );
+
+    quaternion.normalize();
+
+}
 
 /*
 ||================================================||
@@ -96,27 +71,11 @@ void AHRHMahony::updateFilter()
 ||================================================||
 */
 
-ComplementaryFilter::Pose ComplementaryFilter::normalizeQuaternion(Pose quat){
-    return quat.normalized();
-}
 
+Eigen::Matrix3d ComplementaryFilter::quatToRotationMatrix(Pose q)
+{
 
-ComplementaryFilter::Pose ComplementaryFilter::crossfunction(Pose q1,Pose q2){
-
-    Pose P;
-
-    P(0) = q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3];
-    P(1) = q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2];
-    P(2) = q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1];
-    P(3) = q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0];
-
-    return P;
-}
-
-
-Matrix3f ComplementaryFilter::quatToRotationMatrix(Pose q){
-
-    Matrix3f R;
+    Eigen::Matrix3d R;
 
     R(0,0) = -2*pow(q(2), 2) - 2*pow(q(3), 2) + 1;
     R(0,1) = -2*q(0)*q(3) + 2*q(1)*q(2);
