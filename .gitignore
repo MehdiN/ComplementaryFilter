@@ -33,5 +33,5 @@
 
 # Custom gitignore file
 .vscode
-Eigen/*
-boost_1_68_0/*
+include/Eigen/*
+include/boost_1_68_0/*
