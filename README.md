@@ -1,6 +1,6 @@
 # Complementary Filter 
 
-C++ implementation of the Nonlinear Attitude Estimator for Aerial Vehicle.
+C++ implementation of a Nonlinear Attitude Estimator for Aerial Vehicles.
 
 ## Dependencies
 
