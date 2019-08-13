@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include <Eigen/Core>
+#include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <boost/math/special_functions.hpp>
 
